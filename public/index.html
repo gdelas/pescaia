@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <meta name="theme-color" content="#1a3a5c"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>PescaIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{min-height:100%}
+    body{background:#f0f6ff;font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;color:#0f2942}
+    input,select,button{font-family:'Inter',sans-serif}
+    ::-webkit-scrollbar{width:3px;height:3px}
+    ::-webkit-scrollbar-track{background:#e8f0f8}
+    ::-webkit-scrollbar-thumb{background:#7aaad0;border-radius:2px}
+    @keyframes wave1{to{transform:translateX(-50%)}}
+    @keyframes wave2{to{transform:translateX(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes shimmer{0%,100%{opacity:.25}50%{opacity:.75}}
+    @keyframes cloudMove{to{transform:translateX(55px)}}
+    @keyframes twinkle{0%,100%{opacity:.1}50%{opacity:.5}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
