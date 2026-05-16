@@ -316,6 +316,22 @@ function DayCard({dia,score,isMar,horaScores,onClick}){
   );
 }
 
+function MapaNautico({spot}){
+  const mapRef=useRef(null);
+  const mapInst=useRef(null);
+  useEffect(()=>{
+    if(!mapRef.current||mapInst.current||!spot)return;
+    const L=window.L;if(!L)return;
+    const map=L.map(mapRef.current,{center:[spot.lat,spot.lon],zoom:14,zoomControl:false,attributionControl:false});
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,opacity:.85}).addTo(map);
+    L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:18,opacity:.9}).addTo(map);
+    const icon=L.divIcon({html:`<div style="width:14px;height:20px;position:relative"><div style="width:14px;height:14px;background:#dc2626;border:2px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 0 0 2px rgba(220,38,38,.3)"></div></div>`,iconSize:[14,20],iconAnchor:[7,20],className:""});
+    L.marker([spot.lat,spot.lon],{icon}).addTo(map).bindPopup(spot.n);
+    mapInst.current=map;
+  },[spot]);
+  return <div ref={mapRef} style={{width:"100%",height:"100%"}}/>;
+}
+
 export default function App(){
   const[screen,setScreen]=useState("home");
   const[spot,setSpot]=useState(null);
@@ -359,11 +375,22 @@ export default function App(){
     return meteo.dias.map(d=>d.hourly.time.map((t,i)=>calcScore(modal,especie,new Date(t).getHours(),{presion:d.hourly.sp[i]??1013,presionPrev:d.hourly.sp[Math.max(0,i-3)]??1013,viento:d.hourly.wnd[i]??0,lluvia:d.hourly.prcp[i]??0,nubes:d.hourly.cld[i]??0,tempAgua:d.hourly.sst?.[i],ola:d.hourly.wave[i]??0,luna:d.luna,tipoZona:spot?.t||"embalse"})));
   },[meteo,modal,especie,spot]);
 
+
   const scoresSem=useMemo(()=>allDayScores.map(sc=>sc.length?parseFloat((sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1)):5),[allDayScores]);
   const horaScores=allDayScores[diaIdx]||[];
   const scoreHoy=horaScores.length?parseFloat((horaScores.reduce((a,b)=>a+b,0)/horaScores.length).toFixed(1)):0;
   const mejorH=horaScores.length?horaScores.reduce((b,s,h)=>s>b.s?{s,h}:b,{s:0,h:0}):null;
   const recom=useMemo(()=>{if(!mejorH||!dia)return null;const{s,h}=mejorH;if(s>=8)return`Condiciones ÓPTIMAS. Mejor hora: ${pad2(h)}:00h.${cebosSel[0]?" Usa "+cebosSel[0]+".":""}`;if(s>=6.5)return`Condiciones BUENAS a las ${pad2(h)}:00h.${cebosSel[0]?" "+cebosSel[0]+".":""}`;if(s>=4.5)return`Condiciones REGULARES. Mejor ventana: ${pad2(h)}:00h.`;return"Condiciones ADVERSAS.";},[mejorH,dia,cebosSel]);
+  const solunar=useMemo(()=>{
+    if(!dia)return[];
+    const base=dia.luna*24;
+    return[
+      {h:((base+0)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
+      {h:((base+6.2)%24).toFixed(0),tipo:"menor",label:"Menor"},
+      {h:((base+12.4)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
+      {h:((base+18.6)%24).toFixed(0),tipo:"menor",label:"Menor"},
+    ].sort((a,b)=>a.h-b.h);
+  },[dia]);
 
   // ── HOME ────────────────────────────────────────────────────────────────────
   if(screen==="home") return(
@@ -479,37 +506,7 @@ export default function App(){
     </div>
   );
 
-  // ── DETALLE ─────────────────────────────────────────────────────────────────
-  // Tabla solunar calculada a partir de la fase lunar
-  const solunar=useMemo(()=>{
-    if(!dia)return[];
-    const base=dia.luna*24;
-    return[
-      {h:((base+0)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
-      {h:((base+6.2)%24).toFixed(0),tipo:"menor",label:"Menor"},
-      {h:((base+12.4)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
-      {h:((base+18.6)%24).toFixed(0),tipo:"menor",label:"Menor"},
-    ].sort((a,b)=>a.h-b.h);
-  },[dia]);
 
-  // Mapa náutico con OpenSeaMap
-  const MapaNautico=()=>{
-    const mapRef=useRef(null);
-    const mapInst=useRef(null);
-    useEffect(()=>{
-      if(!mapRef.current||mapInst.current)return;
-      const L=window.L;if(!L)return;
-      const map=L.map(mapRef.current,{center:[spot.lat,spot.lon],zoom:14,zoomControl:false,attributionControl:false});
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,opacity:.85}).addTo(map);
-      L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:18,opacity:.9}).addTo(map);
-      const icon=L.divIcon({html:`<div style="width:12px;height:12px;background:#dc2626;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(220,38,38,.3)"></div>`,iconSize:[12,12],iconAnchor:[6,6],className:""});
-      L.marker([spot.lat,spot.lon],{icon}).addTo(map).bindPopup(spot.n);
-      mapInst.current=map;
-    },[]);
-    return <div ref={mapRef} style={{width:"100%",height:"100%"}}/>;
-  };
-
-  return(
     <ErrorBoundary>
     <div style={{minHeight:"100vh",background:BG,fontFamily:SN}}>
 
@@ -572,7 +569,7 @@ export default function App(){
           <Card>
             <SL icon="🗺">MAPA NÁUTICO DEL SPOT</SL>
             <div style={{borderRadius:8,overflow:"hidden",height:200,border:`1px solid ${BD}`,position:"relative"}}>
-              <MapaNautico/>
+              <MapaNautico spot={spot}/>
               <div style={{position:"absolute",bottom:6,left:6,zIndex:500,background:"rgba(255,255,255,.9)",backdropFilter:"blur(4px)",border:`1px solid ${BD}`,borderRadius:4,padding:"2px 7px",fontSize:9,fontFamily:MN,color:AC}}>
                 🗺 OpenSeaMap · {isMar?"Carta náutica":"Mapa satélite"}
               </div>
