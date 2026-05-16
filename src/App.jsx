@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef,useCallback,useMemo}from"react"; 
+import React,{useState,useEffect,useRef,useCallback,useMemo}from"react";
 import{SPOTS}from"./data/spots";
 import{MODALIDADES,MODALS_POR_ZONA,getEspecies,getEspecieInfo}from"./data/especies";
 import{searchSpots,nearestSpot,calcScore,avgScore,sCol,sBg,sLbl,lunaE,lunaN,wDir,pad2,coefMarea,getTidalEvents,mejorIntervalo}from"./utils/calc";
@@ -220,7 +220,7 @@ function SunIcon({rise=true,time}){
           :<path d="M17 15.5 L15 12 M17 15.5 L19 12" fill="none" stroke={col} strokeWidth=".8" strokeLinecap="round" opacity=".5"/>
         }
       </svg>
-      <div style={{fontSize:10,fontFamily:MN,fontWeight:600,color,lineHeight:1}}>{time}</div>
+      <div style={{fontSize:10,fontFamily:MN,fontWeight:600,color:col,lineHeight:1}}>{time}</div>
       <div style={{fontSize:7,color:TXD,marginTop:1}}>{rise?"Amanecer":"Atardecer"}</div>
     </div>
   );
