@@ -480,10 +480,41 @@ export default function App(){
   );
 
   // ── DETALLE ─────────────────────────────────────────────────────────────────
+  // Tabla solunar calculada a partir de la fase lunar
+  const solunar=useMemo(()=>{
+    if(!dia)return[];
+    const base=dia.luna*24;
+    return[
+      {h:((base+0)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
+      {h:((base+6.2)%24).toFixed(0),tipo:"menor",label:"Menor"},
+      {h:((base+12.4)%24).toFixed(0),tipo:"mayor",label:"Mayor ★★"},
+      {h:((base+18.6)%24).toFixed(0),tipo:"menor",label:"Menor"},
+    ].sort((a,b)=>a.h-b.h);
+  },[dia]);
+
+  // Mapa náutico con OpenSeaMap
+  const MapaNautico=()=>{
+    const mapRef=useRef(null);
+    const mapInst=useRef(null);
+    useEffect(()=>{
+      if(!mapRef.current||mapInst.current)return;
+      const L=window.L;if(!L)return;
+      const map=L.map(mapRef.current,{center:[spot.lat,spot.lon],zoom:14,zoomControl:false,attributionControl:false});
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,opacity:.85}).addTo(map);
+      L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",{maxZoom:18,opacity:.9}).addTo(map);
+      const icon=L.divIcon({html:`<div style="width:12px;height:12px;background:#dc2626;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(220,38,38,.3)"></div>`,iconSize:[12,12],iconAnchor:[6,6],className:""});
+      L.marker([spot.lat,spot.lon],{icon}).addTo(map).bindPopup(spot.n);
+      mapInst.current=map;
+    },[]);
+    return <div ref={mapRef} style={{width:"100%",height:"100%"}}/>;
+  };
+
   return(
     <ErrorBoundary>
     <div style={{minHeight:"100vh",background:BG,fontFamily:SN}}>
-      <div style={{background:"rgba(255,255,255,.97)",borderBottom:`1px solid ${BD}`,padding:"10px 14px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}}>
+
+      {/* HEADER con color dinámico según score */}
+      <div style={{background:scoreHoy>=8?"rgba(22,163,74,.06)":scoreHoy>=6.5?"rgba(202,138,4,.06)":"rgba(255,255,255,.97)",borderBottom:`1px solid ${BD}`,padding:"10px 14px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{fontSize:14,fontFamily:MN,fontWeight:700,color:TX}}>PESCA<span style={{color:ACL}}>IA</span> <span style={{fontSize:10,color:TXD,fontWeight:400}}>{dia?.dia} {dia?.fechaC}</span></div>
@@ -492,23 +523,223 @@ export default function App(){
           <button onClick={()=>setScreen("days")} style={{background:"rgba(30,95,160,.07)",border:`1px solid ${BD}`,borderRadius:5,color:TXM,padding:"6px 11px",cursor:"pointer",fontSize:12}}>← Días</button>
         </div>
       </div>
-      {!dia ? (
+
+      {!dia?(
         <div style={{textAlign:"center",padding:"48px",color:TXD,fontSize:11,fontFamily:MN}}>
           <div style={{fontSize:22,display:"inline-block",animation:"spin 1.1s linear infinite",color:AC,marginBottom:8}}>◌</div><br/>CARGANDO...
         </div>
-      ) : (
+      ):(
         <div style={{padding:"11px 12px 40px",display:"flex",flexDirection:"column",gap:9}}>
-          {isMar&&(<div style={{borderRadius:8,overflow:"hidden",height:110,position:"relative"}}><OceanBg waveH={dia.hourly.wave[hora]||0.4} night={isNight}/><div style={{position:"absolute",left:10,bottom:8,zIndex:5}}><div style={{background:"rgba(255,255,255,.85)",backdropFilter:"blur(6px)",border:`1px solid ${BD}`,borderRadius:4,padding:"3px 8px",fontSize:9,fontFamily:MN,color:AC}}>🌊 {(dia.hourly.wave[hora]||0).toFixed(1)}m · {(dia.hourly.wave[hora]||0)<0.5?"CALMA":(dia.hourly.wave[hora]||0)<1.2?"TRANQUILO":(dia.hourly.wave[hora]||0)<2?"RIZADO":"MAREJADA"}</div></div></div>)}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            <Card style={{textAlign:"center"}}><SL>ACTIVIDAD</SL><ScoreBlock score={scoreHoy} lg/><div style={{fontSize:9,fontFamily:MN,color:TXD,marginTop:5,lineHeight:1.5}}>{MODALIDADES.find(m=>m.id===modal)?.n}<br/><span style={{color:"#16a34a"}}>{especie||"General"}</span></div></Card>
-            <Card style={{textAlign:"center"}}><SL>VIENTO</SL><Compass deg={meteo?.cur?.wdir||0} speed={meteo?.cur?.wnd||0} size={88}/></Card>
-            <Card><SL>CONDICIONES</SL>{[{l:"PRESIÓN",v:`${Math.round(dia.hourly.sp[hora]||1013)}`,u:"hPa",c:"#7c3aed"},{l:"TEMP",v:`${(dia.hourly.tmp[hora]||18).toFixed(1)}`,u:"°C",c:"#d97706"},{l:"T.AGUA",v:`${((dia.hourly.sst||[])[hora]||16).toFixed(1)}`,u:"°C",c:"#0891b2"},{l:"NUBES",v:`${dia.hourly.cld[hora]||0}`,u:"%",c:"#64748b"},{l:"LLUVIA",v:`${(dia.hourly.prcp[hora]||0).toFixed(1)}`,u:"mm",c:"#2563eb"}].map(({l,v,u,c},i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}><span style={{fontSize:8,fontFamily:MN,color:TXD,letterSpacing:1}}>{l}</span><span style={{fontSize:13,fontFamily:MN,fontWeight:600,color:c}}>{v}<span style={{fontSize:7,color:TXD}}> {u}</span></span></div>))}</Card>
+
+          {/* SCORE PRINCIPAL + KPIs */}
+          <div style={{background:BGC,border:`1px solid ${BD}`,borderTop:`3px solid ${sCol(scoreHoy)}`,borderRadius:10,padding:"12px 14px",boxShadow:"0 2px 8px rgba(30,95,160,.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:11,fontFamily:MN,color:TXD,letterSpacing:2,marginBottom:6}}>ACTIVIDAD DE PESCA</div>
+                <div style={{fontSize:42,fontFamily:MN,fontWeight:700,color:sCol(scoreHoy),lineHeight:1}}>{scoreHoy.toFixed(1)}</div>
+                <div style={{fontSize:10,color:sCol(scoreHoy),fontFamily:MN,letterSpacing:1,marginTop:2}}>{sLbl(scoreHoy)}</div>
+                <div style={{display:"flex",gap:1.5,marginTop:5}}>
+                  {[...Array(10)].map((_,i)=><Fish key={i} filled={i<Math.round(scoreHoy)} color={sCol(scoreHoy)} sz={13}/>)}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:TXD,marginBottom:3}}>Mejor ventana</div>
+                <div style={{fontSize:20,fontFamily:MN,fontWeight:700,color:AC}}>{pad2(mejorH?.h||0)}:00h</div>
+                <div style={{fontSize:10,color:TXD}}>hasta {pad2((mejorH?.h||0)+2)}:00h</div>
+                <div style={{marginTop:8,fontSize:10,color:TXD}}>T. agua</div>
+                <div style={{fontSize:18,fontFamily:MN,fontWeight:700,color:"#0891b2"}}>{((dia.hourly.sst||[])[hora]||16).toFixed(1)}°C</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5}}>
+              {[
+                {ic:"🌡",v:`${Math.round(dia.hourly.tmp[hora]||18)}°C`,l:"Temp aire"},
+                {ic:"💨",v:`${Math.round(dia.hourly.wnd[hora]||0)} km/h`,l:"Viento "+wDir(dia.hourly.wdir?.[hora]||0)},
+                {ic:"🌊",v:isMar?`${(dia.hourly.wave[hora]||0).toFixed(1)}m`:`${Math.round((dia.hourly.sst||[])[hora]||16)}°`,l:isMar?"Oleaje":"Agua"},
+                {ic:"⬇",v:`${Math.round(dia.hourly.sp[hora]||1013)} hPa`,l:"Presión"},
+                {ic:"🌧",v:`${(dia.hourly.prcp[hora]||0).toFixed(1)} mm`,l:"Lluvia"},
+                {ic:"🌙",v:lunaN(dia.luna),l:`${lunaE(dia.luna)} Luna`},
+              ].map(({ic,v,l},i)=>(
+                <div key={i} style={{background:"rgba(30,95,160,.04)",border:"1px solid rgba(30,95,160,.07)",borderRadius:6,padding:"7px 4px",textAlign:"center"}}>
+                  <div style={{fontSize:15}}>{ic}</div>
+                  <div style={{fontSize:10,fontFamily:MN,fontWeight:700,color:TX,lineHeight:1.2,marginTop:2}}>{v}</div>
+                  <div style={{fontSize:8,color:TXD,marginTop:1}}>{l}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <Card><div style={{display:"flex",justifyContent:"space-around",alignItems:"center"}}><SunIcon rise time={dia.sunrise}/><LunaSVG fase={dia.luna} size={48}/><div style={{textAlign:"center"}}><div style={{fontSize:12,color:TX,fontFamily:MN,fontWeight:600,marginBottom:2}}>{lunaN(dia.luna)}</div><div style={{fontSize:9,color:TXD}}>Ciclo {Math.round(dia.luna*100)}%</div></div><SunIcon rise={false} time={dia.sunset}/></div></Card>
-          <Card><TideChartPro tides={dia.tides.slice(0,24)} horaActual={hora}/><div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>{getTidalEvents(dia.tides.slice(0,24)).map(({h,v,tipo},i)=>(<div key={i} style={{flex:1,minWidth:68,background:tipo==="pleamar"?"rgba(30,95,160,.06)":"rgba(100,116,139,.05)",border:`1px solid ${tipo==="pleamar"?"rgba(30,95,160,.2)":"rgba(100,116,139,.18)"}`,borderRadius:4,padding:"5px 7px",textAlign:"center"}}><div style={{fontSize:9,color:tipo==="pleamar"?AC:TXD}}>{tipo==="pleamar"?"▲ PLEAMAR":"▼ BAJAMAR"}</div><div style={{fontSize:13,fontFamily:MN,fontWeight:700,color:tipo==="pleamar"?AC:TXM}}>{v.toFixed(2)}m</div><div style={{fontSize:9,fontFamily:MN,color:TXD}}>{pad2(h)}:00h</div></div>))}</div></Card>
-          <Card><SL icon="📊">SCORE POR HORA</SL><ScoreLine scores={horaScores} horaActual={hora} sunrise={dia.sunrise} sunset={dia.sunset}/>{mejorH&&(<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6,padding:"5px 8px",background:sBg(mejorH.s),border:`1px solid ${sCol(mejorH.s)}22`,borderRadius:4}}><span style={{fontSize:9,fontFamily:MN,color:TXD}}>⏱ Mejor momento</span><span style={{fontSize:12,fontFamily:MN,fontWeight:700,color:sCol(mejorH.s)}}>{pad2(mejorH.h)}:00h · {mejorH.s.toFixed(1)}</span></div>)}</Card>
-          {especie&&especieInfo&&(<Card><SL icon="🪝">CEBOS — {especie}</SL><div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:7}}>{cebosSel.map((c,i)=><span key={i} style={{padding:"4px 10px",background:"rgba(22,163,74,.07)",border:"1px solid rgba(22,163,74,.2)",borderRadius:4,fontSize:12,fontWeight:500,color:"#15803d"}}>🪝 {c}</span>)}</div>{recom&&<div style={{fontSize:11,color:TXM,lineHeight:1.6,background:"rgba(30,95,160,.04)",padding:"7px 10px",borderRadius:4,borderLeft:`2px solid ${ACL}`}}>💡 {recom}</div>}</Card>)}
-          <Card><SL icon="📈">VARIABLES HORA A HORA</SL><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}><MiniChart data={horaScores} color={sCol(scoreHoy)} label="SCORE PESCA" unit="/10" horaActual={hora}/><MiniChart data={dia.hourly.tmp} color="#d97706" label="TEMP AIRE" unit="°C" horaActual={hora}/><MiniChart data={dia.hourly.wnd} color="#2563eb" label="VIENTO" unit="km/h" horaActual={hora}/>{isMar&&<MiniChart data={dia.hourly.wave} color="#1e5fa0" label="OLEAJE" unit="m" horaActual={hora}/>}<MiniChart data={dia.hourly.sp.map(v=>v?Math.round(v):null)} color="#7c3aed" label="PRESION" unit="hPa" horaActual={hora}/><MiniChart data={dia.hourly.sst||[]} color="#0891b2" label="TAGUA" unit="°C" horaActual={hora}/><MiniChart data={dia.hourly.cld} color="#94a3b8" label="NUBES" unit="%" horaActual={hora}/><MiniChart data={dia.hourly.prcp} color="#60a5fa" label="LLUVIA" unit="mm" horaActual={hora}/></div></Card>
+
+          {/* MAPA NÁUTICO */}
+          <Card>
+            <SL icon="🗺">MAPA NÁUTICO DEL SPOT</SL>
+            <div style={{borderRadius:8,overflow:"hidden",height:200,border:`1px solid ${BD}`,position:"relative"}}>
+              <MapaNautico/>
+              <div style={{position:"absolute",bottom:6,left:6,zIndex:500,background:"rgba(255,255,255,.9)",backdropFilter:"blur(4px)",border:`1px solid ${BD}`,borderRadius:4,padding:"2px 7px",fontSize:9,fontFamily:MN,color:AC}}>
+                🗺 OpenSeaMap · {isMar?"Carta náutica":"Mapa satélite"}
+              </div>
+            </div>
+            <div style={{fontSize:10,color:TXD,marginTop:6,lineHeight:1.5}}>
+              📍 <strong style={{color:TX}}>{spot.n}</strong> · {spot.r}
+              {isMar&&<span> · Ver fondos marinos, bajíos y zonas de pesca en el mapa</span>}
+            </div>
+          </Card>
+
+          {/* TABLA SOLUNAR */}
+          <Card>
+            <SL icon="🌙">TABLA SOLUNAR</SL>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:8}}>
+              {solunar.map(({h,tipo,label},i)=>(
+                <div key={i} style={{textAlign:"center",padding:"7px 4px",background:tipo==="mayor"?"rgba(30,95,160,.07)":"rgba(30,95,160,.03)",border:`1px solid ${tipo==="mayor"?"rgba(30,95,160,.2)":"rgba(30,95,160,.07)"}`,borderRadius:6}}>
+                  <div style={{fontSize:14,marginBottom:2}}>{tipo==="mayor"?"🌊":"🌙"}</div>
+                  <div style={{fontSize:13,fontFamily:MN,fontWeight:700,color:tipo==="mayor"?AC:TXM}}>{pad2(h)}:00h</div>
+                  <div style={{fontSize:8,color:tipo==="mayor"?AC:TXD,marginTop:1}}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:10,color:TXD,background:"rgba(30,95,160,.03)",padding:"6px 8px",borderRadius:5,lineHeight:1.5}}>
+              Periodos mayor ~2h · Menor ~1h. Los mejores momentos coinciden con marea entrante.
+            </div>
+          </Card>
+
+          {/* AMANECER / LUNA / ATARDECER */}
+          <Card>
+            <div style={{display:"flex",justifyContent:"space-around",alignItems:"center"}}>
+              <SunIcon rise time={dia.sunrise}/>
+              <LunaSVG fase={dia.luna} size={48}/>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:12,color:TX,fontFamily:MN,fontWeight:600,marginBottom:2}}>{lunaN(dia.luna)}</div>
+                <div style={{fontSize:9,color:TXD}}>Ciclo {Math.round(dia.luna*100)}%</div>
+              </div>
+              <SunIcon rise={false} time={dia.sunset}/>
+            </div>
+          </Card>
+
+          {/* MAREAS COMPACTAS */}
+          <Card>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <SL icon="🌊" style={{margin:0}}>MAREAS</SL>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{fontSize:10,fontFamily:MN,color:coefMarea(dia.tides.slice(0,24))>80?"#dc2626":coefMarea(dia.tides.slice(0,24))>50?"#ca8a04":"#2563eb",background:coefMarea(dia.tides.slice(0,24))>80?"rgba(220,38,38,.08)":coefMarea(dia.tides.slice(0,24))>50?"rgba(202,138,4,.08)":"rgba(37,99,235,.08)",border:`1px solid ${coefMarea(dia.tides.slice(0,24))>80?"rgba(220,38,38,.25)":coefMarea(dia.tides.slice(0,24))>50?"rgba(202,138,4,.25)":"rgba(37,99,235,.25)"}`,borderRadius:3,padding:"1px 6px"}}>
+                  Coef {coefMarea(dia.tides.slice(0,24))}
+                </span>
+                <span style={{fontSize:10,fontFamily:MN,color:AC}}>↕ {(dia.tides[hora]||0).toFixed(2)}m</span>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 80px",gap:8,alignItems:"center"}}>
+              <TideChartPro tides={dia.tides.slice(0,24)} horaActual={hora} compact/>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {getTidalEvents(dia.tides.slice(0,24)).slice(0,2).map(({h,v,tipo},i)=>(
+                  <div key={i} style={{textAlign:"center",padding:"4px 3px",background:tipo==="pleamar"?"rgba(30,95,160,.06)":"rgba(100,116,139,.05)",border:`1px solid ${tipo==="pleamar"?"rgba(30,95,160,.18)":"rgba(100,116,139,.15)"}`,borderRadius:5}}>
+                    <div style={{fontSize:8,color:tipo==="pleamar"?AC:TXD}}>{tipo==="pleamar"?"▲ Plea":"▼ Baja"}</div>
+                    <div style={{fontSize:12,fontFamily:MN,fontWeight:700,color:tipo==="pleamar"?AC:TXM}}>{v.toFixed(2)}m</div>
+                    <div style={{fontSize:8,fontFamily:MN,color:TXD}}>{pad2(h)}:00h</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,marginTop:6}}>
+              {getTidalEvents(dia.tides.slice(0,24)).map(({h,v,tipo},i)=>(
+                <div key={i} style={{textAlign:"center",padding:"4px 2px",background:tipo==="pleamar"?"rgba(30,95,160,.04)":"rgba(100,116,139,.03)",border:`1px solid ${tipo==="pleamar"?"rgba(30,95,160,.15)":"rgba(100,116,139,.12)"}`,borderRadius:4}}>
+                  <div style={{fontSize:8,color:tipo==="pleamar"?AC:TXD}}>{tipo==="pleamar"?"▲":"▼"}</div>
+                  <div style={{fontSize:11,fontFamily:MN,fontWeight:700,color:tipo==="pleamar"?AC:TXM}}>{v.toFixed(2)}m</div>
+                  <div style={{fontSize:8,fontFamily:MN,color:TXD}}>{pad2(h)}h</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* ACTIVIDAD POR HORA - barras de color */}
+          <Card>
+            <SL icon="📊">ACTIVIDAD DE PESCA POR HORA</SL>
+            <div style={{display:"flex",height:4,borderRadius:2,overflow:"hidden",marginBottom:4}}>
+              {horaScores.map((_,h)=><div key={h} style={{flex:1,background:h>=parseInt(dia.sunrise)&&h<parseInt(dia.sunset)?"rgba(250,200,20,.2)":"rgba(30,60,120,.15)"}}/>)}
+            </div>
+            <div style={{display:"flex",gap:1.5,alignItems:"flex-end",height:44,marginBottom:4}}>
+              {horaScores.map((s,h)=>{
+                const isNow=h===hora;
+                const ht=Math.max(4,(s/10)*40);
+                return(
+                  <div key={h} style={{flex:1,height:`${ht}px`,background:isNow?"#0f2942":sCol(s),borderRadius:"2px 2px 0 0",opacity:isNow?1:.7,transition:"height .3s"}}/>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,fontFamily:MN,color:TXD,marginBottom:8}}>
+              <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span>
+            </div>
+            {mejorH&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:sBg(mejorH.s),border:`1px solid ${sCol(mejorH.s)}22`,borderRadius:6}}>
+                <div>
+                  <div style={{fontSize:9,color:TXD,fontFamily:MN}}>⏱ Mejor momento</div>
+                  <div style={{fontSize:18,fontFamily:MN,fontWeight:700,color:AC}}>{pad2(mejorH.h)}:00h – {pad2(mejorH.h+2)}:00h</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:22,fontFamily:MN,fontWeight:700,color:sCol(mejorH.s)}}>{mejorH.s.toFixed(1)}</div>
+                  <div style={{fontSize:9,color:sCol(mejorH.s),fontFamily:MN}}>{sLbl(mejorH.s)}</div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* CONDICIONES CON BARRAS */}
+          <Card>
+            <SL icon="🌬">CONDICIONES DETALLADAS</SL>
+            <div style={{display:"flex",justifyContent:"space-around",alignItems:"center",marginBottom:12,paddingBottom:10,borderBottom:`1px solid ${BD}`}}>
+              <Compass deg={meteo?.cur?.wdir||0} speed={meteo?.cur?.wnd||0} size={90}/>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {[
+                  {l:"PRESIÓN",v:`${Math.round(dia.hourly.sp[hora]||1013)}`,u:"hPa",c:"#7c3aed",pct:((dia.hourly.sp[hora]||1013)-990)/40*100},
+                  {l:"TEMP",v:`${(dia.hourly.tmp[hora]||18).toFixed(1)}`,u:"°C",c:"#d97706",pct:((dia.hourly.tmp[hora]||18)/40)*100},
+                  {l:"T.AGUA",v:`${((dia.hourly.sst||[])[hora]||16).toFixed(1)}`,u:"°C",c:"#0891b2",pct:((dia.hourly.sst||[])[hora]||16)/30*100},
+                  {l:"NUBES",v:`${dia.hourly.cld[hora]||0}`,u:"%",c:"#64748b",pct:dia.hourly.cld[hora]||0},
+                  {l:"LLUVIA",v:`${(dia.hourly.prcp[hora]||0).toFixed(1)}`,u:"mm",c:"#2563eb",pct:Math.min((dia.hourly.prcp[hora]||0)*10,100)},
+                ].map(({l,v,u,c,pct},i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:8,fontFamily:MN,color:TXD,width:45,letterSpacing:.5}}>{l}</span>
+                    <div style={{width:70,height:5,background:"rgba(30,95,160,.08)",borderRadius:3,overflow:"hidden"}}>
+                      <div style={{width:`${Math.min(Math.max(pct,2),100)}%`,height:"100%",background:c,borderRadius:3}}/>
+                    </div>
+                    <span style={{fontSize:11,fontFamily:MN,fontWeight:700,color:c,minWidth:40}}>{v}<span style={{fontSize:8,color:TXD}}>{u}</span></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {/* CEBOS */}
+          {especie&&especieInfo&&(
+            <Card>
+              <SL icon="🪝">CEBOS — {especie}</SL>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+                {cebosSel.map((c,i)=>(
+                  <span key={i} style={{padding:"5px 11px",background:"rgba(22,163,74,.07)",border:"1px solid rgba(22,163,74,.2)",borderRadius:20,fontSize:12,fontWeight:500,color:"#15803d"}}>🪝 {c}</span>
+                ))}
+              </div>
+              {recom&&<div style={{fontSize:11,color:TXM,lineHeight:1.6,background:"rgba(30,95,160,.04)",padding:"8px 10px",borderRadius:5,borderLeft:`2px solid ${ACL}`}}>💡 {recom}</div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginTop:7}}>
+                {[{l:"PROFUNDIDAD",v:especieInfo.profundidad},{l:"CONDICIONES",v:especieInfo.condiciones}].map(({l,v},i)=>(
+                  <div key={i} style={{background:"rgba(30,95,160,.03)",borderRadius:5,padding:"6px 8px"}}>
+                    <div style={{fontSize:7,fontFamily:MN,color:TXD,letterSpacing:1.5,marginBottom:2}}>{l}</div>
+                    <div style={{fontSize:10,color:TX,lineHeight:1.35}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* VARIABLES HORA A HORA */}
+          <Card>
+            <SL icon="📈">VARIABLES HORA A HORA</SL>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+              <MiniChart data={horaScores} color={sCol(scoreHoy)} label="SCORE PESCA" unit="/10" horaActual={hora}/>
+              <MiniChart data={dia.hourly.tmp} color="#d97706" label="TEMP AIRE" unit="°C" horaActual={hora}/>
+              <MiniChart data={dia.hourly.wnd} color="#2563eb" label="VIENTO" unit="km/h" horaActual={hora}/>
+              {isMar&&<MiniChart data={dia.hourly.wave} color="#1e5fa0" label="OLEAJE" unit="m" horaActual={hora}/>}
+              <MiniChart data={dia.hourly.sp.map(v=>v?Math.round(v):null)} color="#7c3aed" label="PRESION" unit="hPa" horaActual={hora}/>
+              <MiniChart data={dia.hourly.sst||[]} color="#0891b2" label="TAGUA" unit="°C" horaActual={hora}/>
+              <MiniChart data={dia.hourly.cld} color="#94a3b8" label="NUBES" unit="%" horaActual={hora}/>
+              <MiniChart data={dia.hourly.prcp} color="#60a5fa" label="LLUVIA" unit="mm" horaActual={hora}/>
+            </div>
+          </Card>
+
         </div>
       )}
     </div>
