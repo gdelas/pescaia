@@ -506,7 +506,8 @@ export default function App(){
     </div>
   );
 
-
+  // ── DETALLE ─────────────────────────────────────────────────────────────────
+  return(
     <ErrorBoundary>
     <div style={{minHeight:"100vh",background:BG,fontFamily:SN}}>
 
