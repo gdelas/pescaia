@@ -143,7 +143,7 @@ function MiniChart({data,color,label,unit,horaActual=12,h=44}){
     <div style={{background:BGC,border:`1px solid ${BD}`,borderRadius:6,padding:"7px 9px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
         <span style={{fontSize:8,fontFamily:MN,color:TXD,letterSpacing:1.5}}>{label}</span>
-        {nowV!=null&&<span style={{fontSize:11,fontFamily:MN,fontWeight:600,color}}>{typeof nowV==="number"?nowV.toFixed(1):nowV}<span style={{fontSize:7,color:TXD,marginLeft:2}}>{unit}</span></span>}
+        {nowV!=null&&<span style={{fontSize:11,fontFamily:MN,fontWeight:600,color:color}}>{typeof nowV==="number"?nowV.toFixed(1):nowV}<span style={{fontSize:7,color:TXD,marginLeft:2}}>{unit}</span></span>}
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H+12}`} style={{overflow:"visible"}}>
         <defs><linearGradient id={`mc10${label.replace(/\s/g,"")}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity=".1"/><stop offset="100%" stopColor={color} stopOpacity=".01"/></linearGradient></defs>
