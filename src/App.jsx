@@ -4,6 +4,22 @@ import{MODALIDADES,MODALS_POR_ZONA,getEspecies,getEspecieInfo}from"./data/especi
 import{searchSpots,nearestSpot,calcScore,avgScore,sCol,sBg,sLbl,lunaE,lunaN,wDir,pad2,coefMarea,getTidalEvents,mejorIntervalo}from"./utils/calc";
 import{useMeteo}from"./hooks/useMeteo";
 
+class ErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={error:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  render(){
+    if(this.state.error){
+      return<div style={{padding:20,background:"#fff0f0",border:"2px solid #dc2626",borderRadius:8,margin:12,fontFamily:"monospace",fontSize:12}}>
+        <div style={{fontWeight:700,color:"#dc2626",marginBottom:8}}>ERROR DETECTADO:</div>
+        <div style={{color:"#7f1d1d",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{this.state.error.toString()}</div>
+        <div style={{marginTop:8,color:"#7f1d1d"}}>{this.state.error.stack?.split('\n').slice(0,5).join('\n')}</div>
+        <button onClick={()=>this.setState({error:null})} style={{marginTop:12,padding:"6px 12px",background:"#dc2626",color:"#fff",border:"none",borderRadius:4,cursor:"pointer"}}>Volver</button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 const MN="'JetBrains Mono','Courier New',monospace";
 const SN="'Inter',sans-serif";
 const AC="#1e5fa0",ACL="#3b82f6";
@@ -465,6 +481,7 @@ export default function App(){
 
   // ── DETALLE ─────────────────────────────────────────────────────────────────
   return(
+    <ErrorBoundary>
     <div style={{minHeight:"100vh",background:BG,fontFamily:SN}}>
       <div style={{background:"rgba(255,255,255,.97)",borderBottom:`1px solid ${BD}`,padding:"10px 14px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -495,5 +512,6 @@ export default function App(){
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
