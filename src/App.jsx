@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef,useCallback,useMemo}from"react";
+import React,{useState,useEffect,useRef,useCallback,useMemo}from"react"; 
 import{SPOTS}from"./data/spots";
 import{MODALIDADES,MODALS_POR_ZONA,getEspecies,getEspecieInfo}from"./data/especies";
 import{searchSpots,nearestSpot,calcScore,avgScore,sCol,sBg,sLbl,lunaE,lunaN,wDir,pad2,coefMarea,getTidalEvents,mejorIntervalo}from"./utils/calc";
